@@ -8,6 +8,8 @@ const LotPage = () => {
     const [lot, setLot] = useState<Lot | null>(null);
 
     useEffect(() => {
+        if (!id) return;
+
          const GetLot = async () =>{
              try {
                  const data = await getAuctionLot(id!);
