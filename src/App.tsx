@@ -6,6 +6,8 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import Navbar from "./components/Navbar";
 import Cookies from 'js-cookie';
+import RegisterPage from "./pages/RegisterPage";
+import CreateLotPage from "./pages/CreateLotPage";
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,6 +32,8 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/lot/:id" element={<LotPage />} />
                 <Route path="/login" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
+                <Route path="/register" element={<RegisterPage onLogin={() => setIsAuthenticated(true)} />} />
+                <Route path="/create-lot" element={<CreateLotPage />} />
             </Routes>
         </BrowserRouter>
     );

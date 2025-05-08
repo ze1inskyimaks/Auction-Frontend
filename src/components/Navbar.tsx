@@ -9,6 +9,7 @@ const Navbar: React.FC<{ isAuthenticated: boolean, onLogout: () => void }> = ({ 
                 {isAuthenticated ? (
                     <>
                         <li><Link to="/profile">Profile</Link></li>
+                        <li><Link to="/create-lot">Create lot</Link></li>
                         <li><button onClick={onLogout}>Logout</button></li>
                     </>
                 ) : (
