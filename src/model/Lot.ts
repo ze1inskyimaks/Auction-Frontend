@@ -2,6 +2,7 @@
     id: string;
     name: string;
     description: string;
+    linkToImage?: string;
     startTime: string; // або Date, якщо будеш конвертувати
     ownerId: string;
     currentWinnerId: string | null;

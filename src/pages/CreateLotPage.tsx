@@ -7,9 +7,16 @@ const CreateLotPage: React.FC = () => {
     const [name, setName] = useState<string>("");
     const [description, setDescription] = useState<string>("");
     const [startPrice, setStartPrice] = useState<number>(0);
-    const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0, 16)); // формат для datetime-local
+    const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0, 16));
+    const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string>("");
     const navigate = useNavigate();
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            setFile(e.target.files[0]);
+        }
+    };
 
     const handleCreateLot = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -23,20 +30,25 @@ const CreateLotPage: React.FC = () => {
                 return;
             }
 
-            const response = await axios.post("http://localhost:5041/api/v1/auction", {
-                name,
-                description,
-                startPrice,
-                startTime,
-            }, {
+            const formData = new FormData();
+            formData.append("name", name);
+            formData.append("description", description);
+            formData.append("startPrice", startPrice.toString());
+            formData.append("startTime", startTime);
+
+            if (file) {
+                formData.append("file", file);
+            }
+
+            const response = await axios.post("http://localhost:5041/api/v1/auction", formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
+                    "Content-Type": "multipart/form-data",
                 },
             });
 
             console.log("Лот створений:", response.data);
 
-            // 🔹 Переходимо на сторінку з лотом після створення
             navigate(`/lot/${response.data}`);
         } catch (err: any) {
             console.error(err);
@@ -83,6 +95,12 @@ const CreateLotPage: React.FC = () => {
                     onChange={(e) => setStartTime(e.target.value)}
                     className="w-full p-2 mb-3 border rounded-md"
                     required
+                />
+
+                <input
+                    type="file"
+                    onChange={handleFileChange}
+                    className="w-full p-2 mb-3 border rounded-md"
                 />
 
                 <button
