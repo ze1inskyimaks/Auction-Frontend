@@ -1,0 +1,66 @@
+import api from './api';
+import { Lot } from '../model/Lot';
+
+const AUCTION_URL = '/auction';
+
+// ─── GET ────────────────────────────────────────────────────────────────────
+
+export const getAuctionLot = async (id: string): Promise<Lot> => {
+    const response = await api.get<Lot>(`${AUCTION_URL}/${id}`);
+    return response.data;
+};
+
+export const getActiveAuctionsLots = async (): Promise<Lot[]> => {
+    const response = await api.get<Lot[]>(AUCTION_URL);
+    return response.data;
+};
+
+// ─── CREATE ─────────────────────────────────────────────────────────────────
+
+export interface CreateLotInput {
+    name: string;
+    description?: string;
+    startPrice: number;
+    startTime: string; // ISO string
+    file?: File | null;
+}
+
+export const createAuctionLot = async (input: CreateLotInput): Promise<string> => {
+    const formData = new FormData();
+    formData.append('name', input.name);
+    if (input.description) formData.append('description', input.description);
+    formData.append('startPrice', input.startPrice.toString());
+    formData.append('startTime', new Date(input.startTime).toISOString());
+    if (input.file) formData.append('file', input.file);
+
+    const response = await api.post<string>(AUCTION_URL, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return response.data; // повертає Guid нового лота
+};
+
+// ─── UPDATE ─────────────────────────────────────────────────────────────────
+
+export interface UpdateLotInput {
+    name: string;
+    description?: string;
+    startPrice: number;
+    startTime: string;
+}
+
+export const updateAuctionLot = async (lotId: string, input: UpdateLotInput): Promise<string> => {
+    const payload = {
+        ...input,
+        startTime: new Date(input.startTime).toISOString(),
+    };
+
+    const response = await api.put<string>(`${AUCTION_URL}?lotId=${lotId}`, payload);
+    return response.data;
+};
+
+// ─── DELETE ─────────────────────────────────────────────────────────────────
+
+export const deleteAuctionLot = async (lotId: string): Promise<void> => {
+    await api.delete(`${AUCTION_URL}?lotId=${lotId}`);
+};
