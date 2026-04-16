@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createAuctionLot } from '../services/auction-api';
 import { toDateTimeLocalValue } from '../services/date-time';
 import { getApiErrorMessage } from '../services/error-message';
+import { isAuthenticated, isUser } from '../services/identity-api';
 
 const LotCreateView: React.FC = () => {
     const navigate = useNavigate();
@@ -13,9 +14,14 @@ const LotCreateView: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const canCreateLot = isAuthenticated() && isUser();
 
     const submit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (!canCreateLot) {
+            setError('Створення лотів доступне лише для ролі USER.');
+            return;
+        }
         try {
             setLoading(true);
             setError('');
@@ -34,6 +40,7 @@ const LotCreateView: React.FC = () => {
             <p className="muted">Заповни базові дані, а фото можна додати відразу.</p>
 
             {error && <div className="error-box">{error}</div>}
+            {!canCreateLot && <div className="error-box">Створення лотів недоступне для ролі ADMIN.</div>}
 
             <form onSubmit={submit}>
                 <div className="field">
@@ -59,7 +66,7 @@ const LotCreateView: React.FC = () => {
 
                 <div className="inline-row">
                     <button className="btn btn-ghost" type="button" onClick={() => navigate('/')}>Скасувати</button>
-                    <button className="btn btn-primary" disabled={loading} type="submit">
+                    <button className="btn btn-primary" disabled={loading || !canCreateLot} type="submit">
                         {loading ? 'Створення...' : 'Створити'}
                     </button>
                 </div>

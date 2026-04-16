@@ -106,3 +106,13 @@ export const updateAuctionLot = async (lotId: string, input: UpdateLotInput): Pr
 export const deleteAuctionLot = async (lotId: string): Promise<void> => {
     await api.delete(`${AUCTION_URL}?lotId=${lotId}`);
 };
+
+export const markAuctionLotAsDelivered = async (lotId: string): Promise<Lot> => {
+    const response = await api.put<Lot>(`${AUCTION_URL}/${lotId}/deliver`);
+    return response.data;
+};
+
+export const cancelAuctionLotDelivery = async (lotId: string): Promise<Lot> => {
+    const response = await api.put<Lot>(`${AUCTION_URL}/${lotId}/undeliver`);
+    return response.data;
+};

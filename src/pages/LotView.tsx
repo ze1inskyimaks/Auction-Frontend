@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { LotHistoryItem, deleteAuctionLot, getAuctionLot, getAuctionLotHistory } from '../services/auction-api';
+import { LotHistoryItem, cancelAuctionLotDelivery, deleteAuctionLot, getAuctionLot, getAuctionLotHistory, markAuctionLotAsDelivered } from '../services/auction-api';
 import { parseUtcApiDate } from '../services/date-time';
 import { getApiErrorMessage } from '../services/error-message';
-import { getCurrentUserId, isAuthenticated } from '../services/identity-api';
+import { resolveImageUrl } from '../services/image-url';
+import { getCurrentUserId, getCurrentUserRoles, isAuthenticated } from '../services/identity-api';
 import {
     getLotConnection,
     placeBid,
@@ -20,6 +21,15 @@ const getMinimumBid = (basePrice: number): number => {
     return Number((basePrice + step).toFixed(2));
 };
 
+const statusLabel = (status: number): string => {
+    if (status === 0) return 'Активний';
+    if (status === 1) return 'Відкритий';
+    if (status === 2) return 'Завершений';
+    if (status === 3) return 'Скасований';
+    if (status === 4) return 'Доставлений';
+    return 'Невідомо';
+};
+
 const LotView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -33,6 +43,9 @@ const LotView: React.FC = () => {
     const [counter, setCounter] = useState<number | null>(null);
     const [history, setHistory] = useState<LotHistoryItem[]>([]);
     const currentUserId = getCurrentUserId();
+    const roles = getCurrentUserRoles().map((r) => String(r).toUpperCase());
+    const isAdmin = roles.includes('ADMIN');
+    const canBid = roles.includes('USER');
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const isOwner = useMemo(() => !!currentUserId && lot?.ownerId === currentUserId, [currentUserId, lot?.ownerId]);
@@ -53,7 +66,7 @@ const LotView: React.FC = () => {
                 setLot(data);
                 setHistory(historyData);
                 setBidAmount(getMinimumBid(data.currentPrice || data.startPrice));
-                if (data.status === 2 && data.winnerId) {
+                if ((data.status === 2 || data.status === 4) && data.winnerId) {
                     setFinished(true);
                     setWinner({ accountId: data.winnerId, amount: data.endPrice });
                 }
@@ -166,6 +179,10 @@ const LotView: React.FC = () => {
 
     const onBid = async () => {
         if (!id || !lot) return;
+        if (!canBid) {
+            setBidError('Ваш поточний акаунт не має права робити ставки.');
+            return;
+        }
         if (isCurrentWinner) {
             setBidError('Ви вже маєте найвищу ставку. Дочекайтесь, поки вас переб’ють.');
             return;
@@ -182,6 +199,34 @@ const LotView: React.FC = () => {
             await placeBid(id, bidAmount);
         } catch (e) {
             setBidError(getApiErrorMessage(e, 'Не вдалося зробити ставку.'));
+        }
+    };
+
+    const onMarkAsDelivered = async () => {
+        if (!id || !lot || !isAdmin) return;
+
+        try {
+            const updated = await markAuctionLotAsDelivered(id);
+            setLot(updated);
+            if (updated.status === 4) {
+                setFinished(true);
+            }
+        } catch (e) {
+            setError(getApiErrorMessage(e, 'Не вдалося позначити лот як доставлений.'));
+        }
+    };
+
+    const onCancelDelivery = async () => {
+        if (!id || !lot || !isAdmin) return;
+
+        try {
+            const updated = await cancelAuctionLotDelivery(id);
+            setLot(updated);
+            if (updated.status === 2) {
+                setFinished(true);
+            }
+        } catch (e) {
+            setError(getApiErrorMessage(e, 'Не вдалося скасувати статус доставки.'));
         }
     };
 
@@ -229,7 +274,7 @@ const LotView: React.FC = () => {
             <section className="lot-layout">
                 <article className="surface padded">
                     {lot.linkToImage ? (
-                        <img className="lot-image" src={lot.linkToImage} alt={lot.name} />
+                        <img className="lot-image" src={resolveImageUrl(lot.linkToImage)} alt={lot.name} />
                     ) : (
                         <div className="surface padded muted">Зображення відсутнє</div>
                     )}
@@ -256,6 +301,7 @@ const LotView: React.FC = () => {
                     <div className="inline-row">
                         <span className="pill">Старт {lot.startPrice} грн</span>
                         <span className="pill">Поточна {lot.currentPrice || lot.startPrice} грн</span>
+                        <span className="pill">Статус: {statusLabel(lot.status)}</span>
                     </div>
 
                     {counter !== null && !finished && (
@@ -270,7 +316,7 @@ const LotView: React.FC = () => {
                         </div>
                     )}
 
-                    {!isOwner && isAuthenticated() && !finished && (
+                    {!isOwner && isAuthenticated() && canBid && !finished && (
                         <div>
                             <label className="label">Ваша ставка (грн)</label>
                             <div className="inline-row">
@@ -281,9 +327,9 @@ const LotView: React.FC = () => {
                                     step={0.01}
                                     value={bidAmount}
                                     onChange={(e) => setBidAmount(Number(e.target.value))}
-                                    disabled={isCurrentWinner}
+                                    disabled={isCurrentWinner || !canBid}
                                 />
-                                <button className="btn btn-primary" onClick={onBid} disabled={isCurrentWinner}>
+                                <button className="btn btn-primary" onClick={onBid} disabled={isCurrentWinner || !canBid}>
                                     Ставка
                                 </button>
                             </div>
@@ -298,6 +344,22 @@ const LotView: React.FC = () => {
 
                     {!isAuthenticated() && !finished && (
                         <p className="muted">Щоб ставити ставки, <Link to="/login">увійди в акаунт</Link>.</p>
+                    )}
+
+                    {isAuthenticated() && !canBid && (
+                        <p className="muted">Для ролі ADMIN ставки недоступні. Ви можете лише переглядати та адмініструвати лоти.</p>
+                    )}
+
+                    {isAdmin && lot.status === 2 && (
+                        <button className="btn btn-primary" onClick={onMarkAsDelivered}>
+                            Позначити як доставлений
+                        </button>
+                    )}
+
+                    {isAdmin && lot.status === 4 && (
+                        <button className="btn btn-ghost" onClick={onCancelDelivery}>
+                            Скасувати доставку
+                        </button>
                     )}
 
                     {isOwner && (

@@ -80,6 +80,14 @@ export const getCurrentUserRoles = (): string[] => {
     return Array.isArray(roles) ? roles : [roles];
 };
 
+export const hasRole = (role: string): boolean => {
+    const upperRole = role.toUpperCase();
+    return getCurrentUserRoles().some((r) => String(r).toUpperCase() === upperRole);
+};
+
+export const isAdmin = (): boolean => hasRole('ADMIN');
+export const isUser = (): boolean => hasRole('USER');
+
 // ASP.NET Identity може класти ID під різними ключами — перебираємо всі відомі варіанти
 export const getCurrentUserId = (): string | null => {
     const payload = getTokenPayload();

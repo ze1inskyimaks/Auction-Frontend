@@ -1,7 +1,11 @@
 ﻿import React from 'react';
 import { Link } from 'react-router-dom';
+import { isAdmin, isUser } from '../services/identity-api';
 
 const Navbar: React.FC<{ isAuthenticated: boolean, onLogout: () => void }> = ({ isAuthenticated, onLogout }) => {
+    const adminMode = isAuthenticated && isAdmin();
+    const userMode = isAuthenticated && isUser();
+
     return (
         <nav className="topbar">
             <div className="topbar-inner">
@@ -11,12 +15,13 @@ const Navbar: React.FC<{ isAuthenticated: boolean, onLogout: () => void }> = ({ 
                 </Link>
 
                 <div className="nav-links">
+                    {adminMode && <span className="role-badge role-admin">ADMIN MODE</span>}
                     <Link to="/" className="nav-link">Головна</Link>
                     <Link to="/history" className="nav-link">Історія</Link>
                     {isAuthenticated ? (
                         <>
-                            <Link to="/create-lot" className="nav-link">Створити лот</Link>
-                            <Link to="/my-history" className="nav-link">Моя історія</Link>
+                            {userMode && <Link to="/create-lot" className="nav-link">Створити лот</Link>}
+                            {userMode && <Link to="/my-history" className="nav-link">Моя історія</Link>}
                             <button className="btn btn-ghost" onClick={onLogout}>Вийти</button>
                         </>
                     ) : (

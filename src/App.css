@@ -82,6 +82,21 @@
   background: #efe7da;
 }
 
+.role-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.26rem 0.62rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.role-admin {
+  background: #8f2f2f;
+  color: #fff;
+  border: 1px solid #7a2525;
+}
+
 .page-head {
   display: flex;
   align-items: center;

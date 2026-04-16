@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '../services/error-message';
 const statusLabel = (status: number): string => {
     if (status === 2) return 'Продано';
     if (status === 3) return 'Скасовано';
+    if (status === 4) return 'Доставлено';
     return 'Завершено';
 };
 
