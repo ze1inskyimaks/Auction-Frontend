@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuctionLot, updateAuctionLot } from '../services/auction-api';
+import { Category, getCategories } from '../services/categories-api';
 import { parseApiDate, toDateTimeLocalValue } from '../services/date-time';
 import { getApiErrorMessage } from '../services/error-message';
 
@@ -9,6 +10,8 @@ const LotEditView: React.FC = () => {
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [categoryId, setCategoryId] = useState('');
+    const [categories, setCategories] = useState<Category[]>([]);
     const [startPrice, setStartPrice] = useState(0);
     const [startTime, setStartTime] = useState('');
     const [loading, setLoading] = useState(false);
@@ -19,27 +22,33 @@ const LotEditView: React.FC = () => {
 
         const load = async () => {
             try {
-                const lot = await getAuctionLot(id);
+                const [lot, loadedCategories] = await Promise.all([getAuctionLot(id), getCategories()]);
+                setCategories(loadedCategories);
                 setName(lot.name);
                 setDescription(lot.description || '');
                 setStartPrice(lot.startPrice);
                 setStartTime(toDateTimeLocalValue(parseApiDate(lot.startTime)));
+                setCategoryId(lot.categoryId ?? loadedCategories[0]?.id ?? '');
             } catch (err) {
                 setError(getApiErrorMessage(err, 'Не вдалося завантажити лот для редагування.'));
             }
         };
 
-        load();
+        void load();
     }, [id]);
 
     const submit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!id) return;
+        if (!categoryId) {
+            setError('Оберіть категорію для лота.');
+            return;
+        }
 
         try {
             setLoading(true);
             setError('');
-            await updateAuctionLot(id, { name, description, startPrice, startTime });
+            await updateAuctionLot(id, { name, description, categoryId, startPrice, startTime });
             navigate(`/lot/${id}`);
         } catch (err) {
             setError(getApiErrorMessage(err, 'Не вдалося оновити лот.'));
@@ -61,6 +70,17 @@ const LotEditView: React.FC = () => {
                 <div className="field">
                     <label className="label">Опис</label>
                     <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
+                </div>
+                <div className="field">
+                    <label className="label">Категорія</label>
+                    <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
+                        {categories.length === 0 && <option value="">Немає доступних категорій</option>}
+                        {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                                {category.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
                 <div className="field">
                     <label className="label">Стартова ціна</label>

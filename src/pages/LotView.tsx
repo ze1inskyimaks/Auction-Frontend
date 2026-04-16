@@ -4,7 +4,7 @@ import { LotHistoryItem, cancelAuctionLotDelivery, deleteAuctionLot, getAuctionL
 import { parseUtcApiDate } from '../services/date-time';
 import { getApiErrorMessage } from '../services/error-message';
 import { resolveImageUrl } from '../services/image-url';
-import { getCurrentUserId, getCurrentUserRoles, isAuthenticated } from '../services/identity-api';
+import { UserContactProfile, getCurrentUserId, getCurrentUserRoles, getUserContactProfileForAdmin, isAuthenticated } from '../services/identity-api';
 import {
     getLotConnection,
     placeBid,
@@ -42,6 +42,9 @@ const LotView: React.FC = () => {
     const [winner, setWinner] = useState<{ accountId: string; amount: number } | null>(null);
     const [counter, setCounter] = useState<number | null>(null);
     const [history, setHistory] = useState<LotHistoryItem[]>([]);
+    const [selectedContact, setSelectedContact] = useState<UserContactProfile | null>(null);
+    const [selectedContactLabel, setSelectedContactLabel] = useState('');
+    const [contactLoading, setContactLoading] = useState(false);
     const currentUserId = getCurrentUserId();
     const roles = getCurrentUserRoles().map((r) => String(r).toUpperCase());
     const isAdmin = roles.includes('ADMIN');
@@ -230,6 +233,23 @@ const LotView: React.FC = () => {
         }
     };
 
+    const onLoadContactProfile = async (userId: string | null | undefined, label: string) => {
+        if (!isAdmin || !userId) {
+            return;
+        }
+
+        try {
+            setContactLoading(true);
+            const profile = await getUserContactProfileForAdmin(userId);
+            setSelectedContact(profile);
+            setSelectedContactLabel(label);
+        } catch (e) {
+            setError(getApiErrorMessage(e, 'Не вдалося завантажити контактну інформацію користувача.'));
+        } finally {
+            setContactLoading(false);
+        }
+    };
+
     const onDelete = async () => {
         if (!id) return;
         if (!window.confirm('Видалити цей лот?')) return;
@@ -260,6 +280,7 @@ const LotView: React.FC = () => {
             <section className="page-head">
                 <div>
                     <h1 className="page-title">{lot.name}</h1>
+                    {lot.categoryName && <p className="muted">Категорія: {lot.categoryName}</p>}
                     <p className="muted">Початок: {parseUtcApiDate(lot.startTime).toLocaleString('uk-UA')}</p>
                 </div>
                 <Link to="/" className="btn btn-ghost">← До списку</Link>
@@ -298,6 +319,7 @@ const LotView: React.FC = () => {
                 </article>
 
                 <aside className="surface padded lot-meta">
+                    {lot.categoryName && <p className="muted">Категорія лота: {lot.categoryName}</p>}
                     <div className="inline-row">
                         <span className="pill">Старт {lot.startPrice} грн</span>
                         <span className="pill">Поточна {lot.currentPrice || lot.startPrice} грн</span>
@@ -360,6 +382,38 @@ const LotView: React.FC = () => {
                         <button className="btn btn-ghost" onClick={onCancelDelivery}>
                             Скасувати доставку
                         </button>
+                    )}
+
+                    {isAdmin && (
+                        <div className="surface padded">
+                            <strong>Контакти для відправки</strong>
+                            <div className="inline-row" style={{ marginTop: '0.65rem' }}>
+                                <button
+                                    className="btn btn-ghost"
+                                    onClick={() => onLoadContactProfile(lot.ownerId, 'Продавець')}
+                                    disabled={contactLoading}
+                                >
+                                    Контакт продавця
+                                </button>
+                                <button
+                                    className="btn btn-ghost"
+                                    onClick={() => onLoadContactProfile(lot.winnerId, 'Покупець')}
+                                    disabled={contactLoading || !lot.winnerId}
+                                >
+                                    Контакт покупця
+                                </button>
+                            </div>
+                            {selectedContact && (
+                                <div style={{ marginTop: '0.7rem' }}>
+                                    <p className="muted" style={{ margin: 0 }}><strong>{selectedContactLabel}</strong></p>
+                                    <p className="muted" style={{ margin: 0 }}>ID: {selectedContact.id}</p>
+                                    <p className="muted" style={{ margin: 0 }}>Імʼя: {selectedContact.userName ?? '—'}</p>
+                                    <p className="muted" style={{ margin: 0 }}>Email: {selectedContact.email ?? '—'}</p>
+                                    <p className="muted" style={{ margin: 0 }}>Телефон: {selectedContact.phoneNumber ?? '—'}</p>
+                                    <p className="muted" style={{ margin: 0 }}>Ролі: {selectedContact.roles.join(', ') || '—'}</p>
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {isOwner && (

@@ -4,7 +4,7 @@ import { Lot } from '../model/Lot';
 import { getActiveAuctionsLots } from '../services/auction-api';
 import { parseUtcApiDate } from '../services/date-time';
 import { getApiErrorMessage } from '../services/error-message';
-import { isAuthenticated } from '../services/identity-api';
+import { isAuthenticated, isUser } from '../services/identity-api';
 import {
     DeletedLotEvent,
     NewLotEvent,
@@ -18,6 +18,7 @@ const HomeView: React.FC = () => {
     const [lots, setLots] = useState<Lot[]>([]);
     const [error, setError] = useState('');
     const [signalStatus, setSignalStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+    const canCreateLot = isAuthenticated() && isUser();
 
     useEffect(() => {
         const load = async () => {
@@ -29,7 +30,7 @@ const HomeView: React.FC = () => {
             }
         };
 
-        load();
+        void load();
     }, []);
 
     useEffect(() => {
@@ -96,7 +97,7 @@ const HomeView: React.FC = () => {
             }
         };
 
-        connect();
+        void connect();
 
         return () => {
             isDisposed = true;
@@ -114,9 +115,11 @@ const HomeView: React.FC = () => {
                     <h1 className="page-title">Аукціони наживо</h1>
                     <p className="muted">Лоти синхронізуються в реальному часі через SignalR.</p>
                 </div>
-                <button className="btn btn-primary" onClick={() => navigate('/create-lot')}>
-                    + Новий лот
-                </button>
+                {canCreateLot && (
+                    <button className="btn btn-primary" onClick={() => navigate('/create-lot')}>
+                        + Новий лот
+                    </button>
+                )}
             </section>
 
             <div className="status-line">
@@ -135,6 +138,11 @@ const HomeView: React.FC = () => {
                         <article key={lot.id} className="lot-card">
                             <div>
                                 <h3>{lot.name}</h3>
+                                {lot.categoryName && (
+                                    <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+                                        Категорія: {lot.categoryName}
+                                    </p>
+                                )}
                                 <p className="muted" style={{ margin: '0.3rem 0 0' }}>
                                     Початок: {parseUtcApiDate(lot.startTime).toLocaleString('uk-UA')}
                                 </p>

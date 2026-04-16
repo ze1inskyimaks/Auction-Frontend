@@ -18,6 +18,7 @@ const Navbar: React.FC<{ isAuthenticated: boolean, onLogout: () => void }> = ({ 
                     {adminMode && <span className="role-badge role-admin">ADMIN MODE</span>}
                     <Link to="/" className="nav-link">Головна</Link>
                     <Link to="/history" className="nav-link">Історія</Link>
+                    {adminMode && <Link to="/admin/category-requests" className="nav-link">Категорії</Link>}
                     {isAuthenticated ? (
                         <>
                             {userMode && <Link to="/create-lot" className="nav-link">Створити лот</Link>}

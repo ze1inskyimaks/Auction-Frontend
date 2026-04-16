@@ -16,6 +16,14 @@ export interface RegisterDTO {
     password: string;
 }
 
+export interface UserContactProfile {
+    id: string;
+    userName: string | null;
+    email: string | null;
+    phoneNumber: string | null;
+    roles: string[];
+}
+
 // ─── AUTH ────────────────────────────────────────────────────────────────────
 
 export const login = async (dto: LoginDTO): Promise<string> => {
@@ -45,6 +53,11 @@ export const addRoleToUser = async (userId: string, role: string): Promise<void>
 
 export const removeRoleFromUser = async (userId: string, role: string): Promise<void> => {
     await api.delete(`${IDENTITY_URL}/remove_role?id=${userId}&role=${role}`);
+};
+
+export const getUserContactProfileForAdmin = async (userId: string): Promise<UserContactProfile> => {
+    const response = await api.get<UserContactProfile>(`${IDENTITY_URL}/admin/user-profile?id=${userId}`);
+    return response.data;
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────

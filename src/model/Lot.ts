@@ -1,9 +1,11 @@
-﻿export interface Lot {
+export interface Lot {
     id: string;
     name: string;
     description: string;
+    categoryId?: string | null;
+    categoryName?: string | null;
     linkToImage?: string;
-    startTime: string; // або Date, якщо будеш конвертувати
+    startTime: string;
     ownerId: string;
     currentWinnerId: string | null;
     currentPrice: number;

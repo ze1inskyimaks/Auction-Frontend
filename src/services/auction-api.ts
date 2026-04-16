@@ -62,6 +62,7 @@ export const getMyWinsHistory = async (): Promise<Lot[]> => {
 export interface CreateLotInput {
     name: string;
     description?: string;
+    categoryId?: string;
     startPrice: number;
     startTime: string; // ISO string
     file?: File | null;
@@ -71,6 +72,7 @@ export const createAuctionLot = async (input: CreateLotInput): Promise<string> =
     const formData = new FormData();
     formData.append('name', input.name);
     if (input.description) formData.append('description', input.description);
+    if (input.categoryId) formData.append('categoryId', input.categoryId);
     formData.append('startPrice', input.startPrice.toString());
     formData.append('startTime', new Date(input.startTime).toISOString());
     if (input.file) formData.append('file', input.file);
@@ -87,6 +89,7 @@ export const createAuctionLot = async (input: CreateLotInput): Promise<string> =
 export interface UpdateLotInput {
     name: string;
     description?: string;
+    categoryId?: string;
     startPrice: number;
     startTime: string;
 }
