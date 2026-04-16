@@ -25,6 +25,7 @@ export interface LotHistoryItem {
     lotId: string;
     historyNumber: number | null;
     bidderId: string;
+    bidderUserName?: string | null;
     bidAmount: number;
     bidTime: string;
 }
@@ -54,6 +55,11 @@ export const getMyBidHistory = async (): Promise<MyBidHistoryItem[]> => {
 
 export const getMyWinsHistory = async (): Promise<Lot[]> => {
     const response = await api.get<Lot[]>(`${AUCTION_URL}/my/history/wins`);
+    return response.data;
+};
+
+export const getMyHostedHistory = async (): Promise<Lot[]> => {
+    const response = await api.get<Lot[]>(`${AUCTION_URL}/my/history/hosted`);
     return response.data;
 };
 

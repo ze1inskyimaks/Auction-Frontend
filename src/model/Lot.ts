@@ -7,6 +7,7 @@ export interface Lot {
     linkToImage?: string;
     startTime: string;
     ownerId: string;
+    ownerUserName?: string | null;
     currentWinnerId: string | null;
     currentPrice: number;
     lastBitTime: string;
@@ -14,6 +15,7 @@ export interface Lot {
     startPrice: number;
     endPrice: number;
     winnerId: string | null;
+    winnerUserName?: string | null;
     status: number;
     updatedAt: string;
     createdAt: string;

@@ -1,20 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Lot } from '../model/Lot';
-import { MyBidHistoryItem, getMyBidHistory, getMyWinsHistory } from '../services/auction-api';
+import { MyBidHistoryItem, getMyBidHistory, getMyHostedHistory, getMyWinsHistory } from '../services/auction-api';
 import { parseUtcApiDate } from '../services/date-time';
 import { getApiErrorMessage } from '../services/error-message';
 import { isAuthenticated } from '../services/identity-api';
 
-type TabType = 'bids' | 'wins';
+type TabType = 'bids' | 'wins' | 'hosted';
+
+const lotStatusLabel = (status: number): string => {
+    if (status === 0) return 'Активний';
+    if (status === 1) return 'Відкритий';
+    if (status === 2) return 'Завершений';
+    if (status === 3) return 'Скасований';
+    if (status === 4) return 'Доставлений';
+    return 'Невідомо';
+};
 
 const MyAuctionHistoryView: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const initialTab = (searchParams.get('tab') === 'wins' ? 'wins' : 'bids') as TabType;
+    const tabFromQuery = searchParams.get('tab');
+    const initialTab = (tabFromQuery === 'wins' || tabFromQuery === 'hosted' ? tabFromQuery : 'bids') as TabType;
 
     const [activeTab, setActiveTab] = useState<TabType>(initialTab);
     const [bids, setBids] = useState<MyBidHistoryItem[]>([]);
     const [wins, setWins] = useState<Lot[]>([]);
+    const [hosted, setHosted] = useState<Lot[]>([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
 
@@ -34,7 +45,11 @@ const MyAuctionHistoryView: React.FC = () => {
                 setLoading(true);
                 setError('');
 
-                const [bidsResult, winsResult] = await Promise.allSettled([getMyBidHistory(), getMyWinsHistory()]);
+                const [bidsResult, winsResult, hostedResult] = await Promise.allSettled([
+                    getMyBidHistory(),
+                    getMyWinsHistory(),
+                    getMyHostedHistory(),
+                ]);
 
                 if (bidsResult.status === 'fulfilled') {
                     setBids(bidsResult.value);
@@ -49,12 +64,20 @@ const MyAuctionHistoryView: React.FC = () => {
                         prev || getApiErrorMessage(winsResult.reason, 'Не вдалося завантажити історію виграшів.')
                     );
                 }
+
+                if (hostedResult.status === 'fulfilled') {
+                    setHosted(hostedResult.value);
+                } else if (!isIgnorableHistoryError(hostedResult.reason)) {
+                    setError((prev) =>
+                        prev || getApiErrorMessage(hostedResult.reason, 'Не вдалося завантажити історію створених лотів.')
+                    );
+                }
             } finally {
                 setLoading(false);
             }
         };
 
-        load();
+        void load();
     }, []);
 
     const switchTab = (tab: TabType) => {
@@ -66,7 +89,7 @@ const MyAuctionHistoryView: React.FC = () => {
         return (
             <section className="surface padded">
                 <h1 className="page-title">Моя історія</h1>
-                <p className="muted">Щоб переглянути персональну історію ставок та виграшів, увійди в акаунт.</p>
+                <p className="muted">Щоб переглянути персональну історію ставок, виграшів і створених лотів, увійдіть в акаунт.</p>
                 <Link to="/login" className="btn btn-primary">Увійти</Link>
             </section>
         );
@@ -77,7 +100,7 @@ const MyAuctionHistoryView: React.FC = () => {
             <section className="page-head">
                 <div>
                     <h1 className="page-title">Моя історія аукціонів</h1>
-                    <p className="muted">Окремо по ставках і по виграних лотах.</p>
+                    <p className="muted">Окремо по ставках, виграшах і створених вами лотах.</p>
                 </div>
             </section>
 
@@ -87,6 +110,9 @@ const MyAuctionHistoryView: React.FC = () => {
                 </button>
                 <button className={`btn ${activeTab === 'wins' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => switchTab('wins')}>
                     Мої виграші
+                </button>
+                <button className={`btn ${activeTab === 'hosted' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => switchTab('hosted')}>
+                    Мої створені лоти
                 </button>
             </div>
 
@@ -116,18 +142,40 @@ const MyAuctionHistoryView: React.FC = () => {
                         ))}
                     </section>
                 )
-            ) : wins.length === 0 ? (
-                <div className="surface padded muted">Поки що немає виграних лотів.</div>
+            ) : activeTab === 'wins' ? (
+                wins.length === 0 ? (
+                    <div className="surface padded muted">Поки що немає виграних лотів.</div>
+                ) : (
+                    <section className="lots-grid">
+                        {wins.map((lot) => (
+                            <article key={lot.id} className="lot-card">
+                                <h3>{lot.name}</h3>
+                                <p className="muted" style={{ margin: 0 }}>
+                                    Виграшна ставка: {(lot.endPrice || lot.currentPrice || lot.startPrice).toFixed(2)} грн
+                                </p>
+                                <p className="muted" style={{ margin: 0 }}>
+                                    Початок: {parseUtcApiDate(lot.startTime).toLocaleString('uk-UA')}
+                                </p>
+                                <Link className="btn btn-accent" to={`/lot/${lot.id}`}>Перейти до лота</Link>
+                            </article>
+                        ))}
+                    </section>
+                )
+            ) : hosted.length === 0 ? (
+                <div className="surface padded muted">Поки що немає створених вами лотів.</div>
             ) : (
                 <section className="lots-grid">
-                    {wins.map((lot) => (
+                    {hosted.map((lot) => (
                         <article key={lot.id} className="lot-card">
                             <h3>{lot.name}</h3>
                             <p className="muted" style={{ margin: 0 }}>
-                                Виграшна ставка: {(lot.endPrice || lot.currentPrice || lot.startPrice).toFixed(2)} грн
+                                Статус: {lotStatusLabel(lot.status)}
                             </p>
                             <p className="muted" style={{ margin: 0 }}>
                                 Початок: {parseUtcApiDate(lot.startTime).toLocaleString('uk-UA')}
+                            </p>
+                            <p className="muted" style={{ margin: 0 }}>
+                                Стартова ціна: {lot.startPrice.toFixed(2)} грн
                             </p>
                             <Link className="btn btn-accent" to={`/lot/${lot.id}`}>Перейти до лота</Link>
                         </article>

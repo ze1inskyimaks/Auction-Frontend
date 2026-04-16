@@ -15,6 +15,7 @@ import {
     UserContactProfile,
     getCurrentUserId,
     getCurrentUserRoles,
+    getPublicUserProfileById,
     getUserContactProfileForAdmin,
     isAuthenticated,
 } from '../services/identity-api';
@@ -29,6 +30,8 @@ const getMinimumBid = (basePrice: number): number => {
     return Number((basePrice + step).toFixed(2));
 };
 
+const normalizeId = (value: string | null | undefined): string => (value ?? '').trim().toLowerCase();
+
 const statusLabel = (status: number): string => {
     if (status === 0) return 'Активний';
     if (status === 1) return 'Відкритий';
@@ -38,10 +41,9 @@ const statusLabel = (status: number): string => {
     return 'Невідомо';
 };
 
-const shortId = (value: string | null | undefined): string => {
-    if (!value) return '—';
-    if (value.length <= 10) return value;
-    return `${value.slice(0, 8)}...`;
+const displayUserName = (value: string | null | undefined): string => {
+    if (!value || !value.trim()) return 'Невідомий користувач';
+    return value;
 };
 
 const LotView: React.FC = () => {
@@ -53,9 +55,10 @@ const LotView: React.FC = () => {
     const [bidAmount, setBidAmount] = useState(0);
     const [signalStatus, setSignalStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
     const [finished, setFinished] = useState(false);
-    const [winner, setWinner] = useState<{ accountId: string; amount: number } | null>(null);
+    const [winner, setWinner] = useState<{ accountId: string; userName?: string | null; amount: number } | null>(null);
     const [counter, setCounter] = useState<number | null>(null);
     const [history, setHistory] = useState<LotHistoryItem[]>([]);
+    const [userNamesById, setUserNamesById] = useState<Record<string, string>>({});
     const [selectedContact, setSelectedContact] = useState<UserContactProfile | null>(null);
     const [selectedContactLabel, setSelectedContactLabel] = useState('');
     const [contactLoading, setContactLoading] = useState(false);
@@ -66,11 +69,73 @@ const LotView: React.FC = () => {
     const canBid = roles.includes('USER');
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const isOwner = useMemo(() => !!currentUserId && lot?.ownerId === currentUserId, [currentUserId, lot?.ownerId]);
+    const isOwner = useMemo(
+        () => normalizeId(lot?.ownerId) !== '' && normalizeId(lot?.ownerId) === normalizeId(currentUserId),
+        [currentUserId, lot?.ownerId]
+    );
     const isCurrentWinner = useMemo(
-        () => !!currentUserId && !!lot?.currentWinnerId && String(lot.currentWinnerId) === currentUserId,
+        () => normalizeId(String(lot?.currentWinnerId ?? '')) !== '' &&
+            normalizeId(String(lot?.currentWinnerId ?? '')) === normalizeId(currentUserId),
         [currentUserId, lot?.currentWinnerId]
     );
+
+    useEffect(() => {
+        const ids = new Set<string>();
+        if (lot?.ownerId) ids.add(lot.ownerId);
+        if (lot?.winnerId) ids.add(lot.winnerId);
+        if (lot?.currentWinnerId) ids.add(String(lot.currentWinnerId));
+        history.forEach((item) => {
+            if (item.bidderId) ids.add(item.bidderId);
+        });
+
+        const normalizedCurrent = normalizeId(currentUserId);
+        const missing = Array.from(ids).filter((idValue) => {
+            const normalized = normalizeId(idValue);
+            if (!normalized) return false;
+            if (normalized === normalizedCurrent) return false;
+            return !userNamesById[normalized];
+        });
+
+        if (missing.length === 0) {
+            return;
+        }
+
+        void (async () => {
+            const entries = await Promise.all(
+                missing.map(async (idValue) => {
+                    try {
+                        const profile = await getPublicUserProfileById(idValue);
+                        const normalized = normalizeId(profile.id);
+                        return normalized && profile.userName
+                            ? ([normalized, profile.userName] as const)
+                            : null;
+                    } catch {
+                        return null;
+                    }
+                })
+            );
+
+            const updates = entries
+                .filter((entry): entry is readonly [string, string] => entry !== null)
+                .reduce<Record<string, string>>((acc, [idValue, userName]) => {
+                    acc[idValue] = userName;
+                    return acc;
+                }, {});
+
+            if (Object.keys(updates).length > 0) {
+                setUserNamesById((prev) => ({ ...prev, ...updates }));
+            }
+        })();
+    }, [lot?.ownerId, lot?.winnerId, lot?.currentWinnerId, history, currentUserId, userNamesById]);
+
+    const getDisplayNameById = (idValue: string | null | undefined, fallbackName?: string | null): string => {
+        if (!idValue) return displayUserName(fallbackName);
+        if (normalizeId(idValue) === normalizeId(currentUserId)) {
+            return 'Ви';
+        }
+        const mapped = userNamesById[normalizeId(idValue)];
+        return displayUserName(mapped ?? fallbackName);
+    };
 
     useEffect(() => {
         if (!id) return;
@@ -83,7 +148,7 @@ const LotView: React.FC = () => {
                 setBidAmount(getMinimumBid(data.currentPrice || data.startPrice));
                 if ((data.status === 2 || data.status === 4) && data.winnerId) {
                     setFinished(true);
-                    setWinner({ accountId: data.winnerId, amount: data.endPrice });
+                    setWinner({ accountId: data.winnerId, userName: data.winnerUserName, amount: data.endPrice });
                 }
             } catch (e) {
                 setError(getApiErrorMessage(e, 'Не вдалося завантажити лот.'));
@@ -125,6 +190,7 @@ const LotView: React.FC = () => {
                                 lotId: id,
                                 historyNumber: topNumber + 1,
                                 bidderId: accountId,
+                                bidderUserName: normalizeId(accountId) === normalizeId(currentUserId) ? 'Ви' : null,
                                 bidAmount: amount,
                                 bidTime: new Date().toISOString(),
                             },
@@ -146,9 +212,18 @@ const LotView: React.FC = () => {
                 });
 
                 conn.on('ReceiveFinishLot', (_lotId: string, accountId: string, amount: number) => {
+                    const winnerFromHistory = normalizeId(accountId) === normalizeId(currentUserId) ? 'Ви' : null;
                     setFinished(true);
-                    setWinner({ accountId, amount });
-                    setLot((prev) => (prev ? { ...prev, status: 2, winnerId: accountId, endPrice: amount } : prev));
+                    setWinner({
+                        accountId,
+                        userName: winnerFromHistory ?? (normalizeId(accountId) === normalizeId(currentUserId) ? 'Ви' : null),
+                        amount
+                    });
+                    setLot((prev) =>
+                        prev
+                            ? { ...prev, status: 2, winnerId: accountId, winnerUserName: winnerFromHistory ?? prev.winnerUserName, endPrice: amount }
+                            : prev
+                    );
                     setCounter(null);
                     if (timerRef.current) clearInterval(timerRef.current);
                 });
@@ -181,6 +256,10 @@ const LotView: React.FC = () => {
 
     const onBid = async () => {
         if (!id || !lot) return;
+        if (isOwner) {
+            setBidError('Власник лота не може робити ставку на свій лот.');
+            return;
+        }
         if (!canBid) {
             setBidError('Ваш акаунт не має права робити ставки.');
             return;
@@ -270,6 +349,8 @@ const LotView: React.FC = () => {
 
     const currentPrice = lot.currentPrice || lot.startPrice;
     const minBid = getMinimumBid(currentPrice);
+    const isFinishedLot = lot.status === 2 || lot.status === 4;
+    const canManageLot = isOwner && !isFinishedLot;
 
     return (
         <section className="lot-page">
@@ -314,7 +395,7 @@ const LotView: React.FC = () => {
                             <div>
                                 {history.map((item) => (
                                     <div key={item.id} className="history-row">
-                                        <span>#{item.historyNumber ?? '-'} · {shortId(item.bidderId)}</span>
+                                        <span>#{item.historyNumber ?? '-'} · {getDisplayNameById(item.bidderId, item.bidderUserName)}</span>
                                         <span>{item.bidAmount.toFixed(2)} грн · {parseUtcApiDate(item.bidTime).toLocaleString('uk-UA')}</span>
                                     </div>
                                 ))}
@@ -336,7 +417,7 @@ const LotView: React.FC = () => {
                     {finished && winner && (
                         <div className="surface padded">
                             <strong>Аукціон завершено</strong>
-                            <p className="muted">Переможець: {shortId(winner.accountId)}</p>
+                            <p className="muted">Переможець: {getDisplayNameById(winner.accountId, winner.userName)}</p>
                             <p className="muted">Фінальна ставка: {winner.amount.toFixed(2)} грн</p>
                         </div>
                     )}
@@ -412,7 +493,7 @@ const LotView: React.FC = () => {
                         </div>
                     )}
 
-                    {isOwner && (
+                    {canManageLot && (
                         <div className="inline-row">
                             <button className="btn btn-accent" onClick={() => navigate(`/lot/${id}/edit`)}>Редагувати</button>
                             <button className="btn btn-danger" onClick={onDelete}>Видалити</button>

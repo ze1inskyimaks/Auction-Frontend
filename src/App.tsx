@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import { isAuthenticated, logout } from './services/identity-api';
+import { isAdmin, isAuthenticated, isUser, logout } from './services/identity-api';
 import HomeView from './pages/HomeView';
 import LotView from './pages/LotView';
 import LotCreateView from './pages/LotCreateView';
@@ -28,6 +28,26 @@ function App() {
         setAuthenticated(false);
     };
 
+    const userOnly = (element: React.ReactElement): React.ReactElement => {
+        if (!authenticated) {
+            return <Navigate to="/login" replace />;
+        }
+        if (!isUser()) {
+            return <Navigate to="/" replace />;
+        }
+        return element;
+    };
+
+    const adminOnly = (element: React.ReactElement): React.ReactElement => {
+        if (!authenticated) {
+            return <Navigate to="/login" replace />;
+        }
+        if (!isAdmin()) {
+            return <Navigate to="/" replace />;
+        }
+        return element;
+    };
+
     return (
         <BrowserRouter>
             <div className="app-shell">
@@ -40,10 +60,10 @@ function App() {
                         <Route path="/history" element={<AuctionHistoryView />} />
                         <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
                         <Route path="/register" element={<RegisterView onLogin={handleLogin} />} />
-                        <Route path="/create-lot" element={<LotCreateView />} />
-                        <Route path="/my-history" element={<MyAuctionHistoryView />} />
-                        <Route path="/profile" element={<ProfileView />} />
-                        <Route path="/admin/category-requests" element={<AdminCategoryRequestsView />} />
+                        <Route path="/create-lot" element={userOnly(<LotCreateView />)} />
+                        <Route path="/my-history" element={userOnly(<MyAuctionHistoryView />)} />
+                        <Route path="/profile" element={authenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
+                        <Route path="/admin/category-requests" element={adminOnly(<AdminCategoryRequestsView />)} />
                     </Routes>
                 </main>
             </div>

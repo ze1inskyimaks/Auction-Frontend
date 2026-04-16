@@ -18,16 +18,15 @@ let lotConnectionId: string | null = null;
 
 let lobbyStartPromise: Promise<void> | null = null;
 let lotStartPromise: Promise<void> | null = null;
+let lotStartPromiseId: string | null = null;
 
-const createConnection = (url: string, webSocketOnly: boolean): signalR.HubConnection => {
+const createConnection = (url: string): signalR.HubConnection => {
     const connectionBuilder = new signalR.HubConnectionBuilder()
         .withUrl(url, {
             withCredentials: true,
             accessTokenFactory: () => getAuthToken() ?? '',
-            skipNegotiation: webSocketOnly,
-            transport: webSocketOnly
-                ? signalR.HttpTransportType.WebSockets
-                : signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents | signalR.HttpTransportType.LongPolling,
+            skipNegotiation: false,
+            transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents | signalR.HttpTransportType.LongPolling,
         })
         .withAutomaticReconnect([0, 1500, 5000, 10000])
         .configureLogging(signalR.LogLevel.Error);
@@ -50,19 +49,17 @@ const startWithFallback = async (
 
     let lastError: unknown = null;
     for (const url of urls) {
-        for (const webSocketOnly of [true, false]) {
-            const conn = createConnection(url, webSocketOnly);
+        const conn = createConnection(url);
+        try {
+            await conn.start();
+            const origin = url.replace(/\/auctionhub(\?.*)?$/, '');
+            rememberBackendOrigin(origin);
+            return conn;
+        } catch (error) {
+            lastError = error;
             try {
-                await conn.start();
-                const origin = url.replace(/\/auctionhub(\?.*)?$/, '');
-                rememberBackendOrigin(origin);
-                return conn;
-            } catch (error) {
-                lastError = error;
-                try {
-                    await conn.stop();
-                } catch {
-                }
+                await conn.stop();
+            } catch {
             }
         }
     }
@@ -124,7 +121,15 @@ export const startLotConnection = async (lotId: string): Promise<void> => {
         return;
     }
 
+    if (lotStartPromise && lotStartPromiseId && lotStartPromiseId !== lotId) {
+        try {
+            await lotStartPromise;
+        } catch {
+        }
+    }
+
     if (!lotStartPromise) {
+        lotStartPromiseId = lotId;
         lotStartPromise = (async () => {
             if (lotConnection && lotConnectionId !== lotId && lotConnection.state !== signalR.HubConnectionState.Disconnected) {
                 await lotConnection.stop();
@@ -134,6 +139,7 @@ export const startLotConnection = async (lotId: string): Promise<void> => {
             lotConnectionId = lotId;
         })().finally(() => {
             lotStartPromise = null;
+            lotStartPromiseId = null;
         });
     }
 

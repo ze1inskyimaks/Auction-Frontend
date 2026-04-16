@@ -24,6 +24,11 @@ export interface UserContactProfile {
     roles: string[];
 }
 
+export interface PublicUserProfile {
+    id: string;
+    userName: string | null;
+}
+
 export interface MyProfile {
     id: string;
     userName: string | null;
@@ -71,6 +76,11 @@ export const removeRoleFromUser = async (userId: string, role: string): Promise<
 
 export const getUserContactProfileForAdmin = async (userId: string): Promise<UserContactProfile> => {
     const response = await api.get<UserContactProfile>(`${IDENTITY_URL}/admin/user-profile?id=${userId}`);
+    return response.data;
+};
+
+export const getPublicUserProfileById = async (userId: string): Promise<PublicUserProfile> => {
+    const response = await api.get<PublicUserProfile>(`${IDENTITY_URL}/public/user-profile?id=${userId}`);
     return response.data;
 };
 
