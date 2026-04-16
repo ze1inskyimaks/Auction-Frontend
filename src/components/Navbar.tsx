@@ -21,6 +21,7 @@ const Navbar: React.FC<{ isAuthenticated: boolean, onLogout: () => void }> = ({ 
                     {adminMode && <Link to="/admin/category-requests" className="nav-link">Категорії</Link>}
                     {isAuthenticated ? (
                         <>
+                            <Link to="/profile" className="nav-link">Профіль</Link>
                             {userMode && <Link to="/create-lot" className="nav-link">Створити лот</Link>}
                             {userMode && <Link to="/my-history" className="nav-link">Моя історія</Link>}
                             <button className="btn btn-ghost" onClick={onLogout}>Вийти</button>

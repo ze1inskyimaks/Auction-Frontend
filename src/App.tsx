@@ -12,6 +12,7 @@ import RegisterView from './pages/RegisterView';
 import AuctionHistoryView from './pages/AuctionHistoryView';
 import MyAuctionHistoryView from './pages/MyAuctionHistoryView';
 import AdminCategoryRequestsView from './pages/AdminCategoryRequestsView';
+import ProfileView from './pages/ProfileView';
 
 function App() {
     const [authenticated, setAuthenticated] = useState(false);
@@ -41,6 +42,7 @@ function App() {
                         <Route path="/register" element={<RegisterView onLogin={handleLogin} />} />
                         <Route path="/create-lot" element={<LotCreateView />} />
                         <Route path="/my-history" element={<MyAuctionHistoryView />} />
+                        <Route path="/profile" element={<ProfileView />} />
                         <Route path="/admin/category-requests" element={<AdminCategoryRequestsView />} />
                     </Routes>
                 </main>

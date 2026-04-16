@@ -24,6 +24,20 @@ export interface UserContactProfile {
     roles: string[];
 }
 
+export interface MyProfile {
+    id: string;
+    userName: string | null;
+    email: string | null;
+    phoneNumber: string | null;
+    roles: string[];
+}
+
+export interface UpdateMyProfileInput {
+    userName: string;
+    email: string;
+    phoneNumber?: string | null;
+}
+
 // ─── AUTH ────────────────────────────────────────────────────────────────────
 
 export const login = async (dto: LoginDTO): Promise<string> => {
@@ -57,6 +71,16 @@ export const removeRoleFromUser = async (userId: string, role: string): Promise<
 
 export const getUserContactProfileForAdmin = async (userId: string): Promise<UserContactProfile> => {
     const response = await api.get<UserContactProfile>(`${IDENTITY_URL}/admin/user-profile?id=${userId}`);
+    return response.data;
+};
+
+export const getMyProfile = async (): Promise<MyProfile> => {
+    const response = await api.get<MyProfile>(`${IDENTITY_URL}/profile`);
+    return response.data;
+};
+
+export const updateMyProfile = async (input: UpdateMyProfileInput): Promise<MyProfile> => {
+    const response = await api.put<MyProfile>(`${IDENTITY_URL}/profile`, input);
     return response.data;
 };
 
