@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import LotPage from './pages/LotPage';
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
 import Navbar from './components/Navbar';
-import RegisterPage from './pages/RegisterPage';
-import CreateLotPage from './pages/CreateLotPage';
-import EditLotPage from './pages/EditLotPage';
 import { isAuthenticated, logout } from './services/identity-api';
+import HomeView from './pages/HomeView';
+import LotView from './pages/LotView';
+import LotCreateView from './pages/LotCreateView';
+import LotEditView from './pages/LotEditView';
+import LoginView from './pages/LoginView';
+import RegisterView from './pages/RegisterView';
+import AuctionHistoryView from './pages/AuctionHistoryView';
+import MyAuctionHistoryView from './pages/MyAuctionHistoryView';
 
 function App() {
     const [authenticated, setAuthenticated] = useState(false);
@@ -26,15 +28,21 @@ function App() {
 
     return (
         <BrowserRouter>
-            <Navbar isAuthenticated={authenticated} onLogout={handleLogout} />
-            <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/lot/:id" element={<LotPage />} />
-                <Route path="/lot/:id/edit" element={<EditLotPage />} />
-                <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-                <Route path="/register" element={<RegisterPage onLogin={handleLogin} />} />
-                <Route path="/create-lot" element={<CreateLotPage />} />
-            </Routes>
+            <div className="app-shell">
+                <Navbar isAuthenticated={authenticated} onLogout={handleLogout} />
+                <main className="app-main">
+                    <Routes>
+                        <Route path="/" element={<HomeView />} />
+                        <Route path="/lot/:id" element={<LotView />} />
+                        <Route path="/lot/:id/edit" element={<LotEditView />} />
+                        <Route path="/history" element={<AuctionHistoryView />} />
+                        <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
+                        <Route path="/register" element={<RegisterView onLogin={handleLogin} />} />
+                        <Route path="/create-lot" element={<LotCreateView />} />
+                        <Route path="/my-history" element={<MyAuctionHistoryView />} />
+                    </Routes>
+                </main>
+            </div>
         </BrowserRouter>
     );
 }

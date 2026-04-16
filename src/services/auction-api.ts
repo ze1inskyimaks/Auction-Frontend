@@ -1,4 +1,4 @@
-import api from './api';
+import api from './http-client';
 import { Lot } from '../model/Lot';
 
 const AUCTION_URL = '/auction';
@@ -12,6 +12,48 @@ export const getAuctionLot = async (id: string): Promise<Lot> => {
 
 export const getActiveAuctionsLots = async (): Promise<Lot[]> => {
     const response = await api.get<Lot[]>(AUCTION_URL);
+    return response.data;
+};
+
+export const getArchivedAuctionsLots = async (): Promise<Lot[]> => {
+    const response = await api.get<Lot[]>(`${AUCTION_URL}/history`);
+    return response.data;
+};
+
+export interface LotHistoryItem {
+    id: string;
+    lotId: string;
+    historyNumber: number | null;
+    bidderId: string;
+    bidAmount: number;
+    bidTime: string;
+}
+
+export const getAuctionLotHistory = async (id: string): Promise<LotHistoryItem[]> => {
+    const response = await api.get<LotHistoryItem[]>(`${AUCTION_URL}/${id}/history`);
+    return response.data;
+};
+
+export interface MyBidHistoryItem {
+    id: string;
+    lotId: string;
+    lotName: string;
+    lotStatus: number;
+    lotWinnerId: string | null;
+    lotEndPrice: number;
+    historyNumber: number | null;
+    bidderId: string;
+    bidAmount: number;
+    bidTime: string;
+}
+
+export const getMyBidHistory = async (): Promise<MyBidHistoryItem[]> => {
+    const response = await api.get<MyBidHistoryItem[]>(`${AUCTION_URL}/my/history/bids`);
+    return response.data;
+};
+
+export const getMyWinsHistory = async (): Promise<Lot[]> => {
+    const response = await api.get<Lot[]>(`${AUCTION_URL}/my/history/wins`);
     return response.data;
 };
 

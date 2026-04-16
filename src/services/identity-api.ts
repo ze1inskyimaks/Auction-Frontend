@@ -1,4 +1,4 @@
-import api from './api';
+import api from './http-client';
 import { clearAuthToken, getAuthToken, saveAuthToken } from './auth-token';
 
 const IDENTITY_URL = '/identity';

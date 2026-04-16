@@ -7,7 +7,7 @@ import {
     getLobbyConnection,
     NewLotEvent,
     DeletedLotEvent,
-} from '../services/signalr';
+} from '../services/signalr-client';
 import { isAuthenticated } from '../services/identity-api';
 import { Lot } from '../model/Lot';
 
@@ -44,6 +44,10 @@ const HomePage: React.FC = () => {
                 setSignalRStatus('connected');
 
                 const conn = getLobbyConnection();
+                if (!conn) {
+                    setSignalRStatus('error');
+                    return;
+                }
 
                 // Новий або змінений лот — додаємо/оновлюємо в списку
                 conn.on('ReceiveNewLot', (event: NewLotEvent) => {
@@ -97,8 +101,8 @@ const HomePage: React.FC = () => {
         // При виході зі сторінки — відключаємось
         return () => {
             const conn = getLobbyConnection();
-            conn.off('ReceiveNewLot');
-            conn.off('ReceiveDeletedLot');
+            conn?.off('ReceiveNewLot');
+            conn?.off('ReceiveDeletedLot');
             stopLobbyConnection();
         };
     }, []);

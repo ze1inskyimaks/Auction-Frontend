@@ -8,7 +8,7 @@ import {
     stopLotConnection,
     getLotConnection,
     placeBid,
-} from '../services/signalr';
+} from '../services/signalr-client';
 import { parseApiDate } from '../services/date-time';
 
 const AUCTION_TIMER_SECONDS = 15;
